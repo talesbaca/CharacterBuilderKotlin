@@ -27,6 +27,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterCreationScreen(modifier: Modifier = Modifier) {
     var strength by remember { mutableStateOf("") }
@@ -85,21 +86,32 @@ fun CharacterCreationScreen(modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
         )
 
-        Box(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-            Button(onClick = { expanded = true }) {
-                Text(text = selectedRace)
-            }
-            DropdownMenu(
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            TextField(
+                value = selectedRace,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Raça") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
+                modifier = Modifier.fillMaxWidth().menuAnchor()
+            )
+            ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
                 races.forEach { race ->
-                    DropdownMenuItem(onClick = {
-                        selectedRace = race
-                        expanded = false
-                    }) {
-                        Text(text = race)
-                    }
+                    DropdownMenuItem(
+                        text = { Text(text = race) },
+                        onClick = {
+                            selectedRace = race
+                            expanded = false
+                        }
+                    )
                 }
             }
         }
