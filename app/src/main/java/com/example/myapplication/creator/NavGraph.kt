@@ -22,7 +22,10 @@ fun NavGraph(startDestination: String = "name_screen", database: AppDatabase) {
             arguments = listOf(navArgument("characterName") { type = NavType.StringType })
         ) { backStackEntry ->
             val characterName = backStackEntry.arguments?.getString("characterName") ?: ""
-            CharacterCreationScreen(database = database, characterName = characterName)
+            CharacterCreationScreen(database = database, characterName = characterName, navController = navController)
+        }
+        composable("character_list") {
+            CharacterListScreen(navController = navController, database = database)
         }
     }
 }

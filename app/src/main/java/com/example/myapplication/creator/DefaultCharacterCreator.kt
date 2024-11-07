@@ -4,7 +4,7 @@ import com.example.myapplication.model.Character
 import com.example.myapplication.model.Race
 
 class DefaultCharacterCreator : CharacterCreator {
-    override fun createCharacter(race: Race): Character {
+    override fun createCharacter(race: Race, points: Any): Character {
         val attributes = mutableMapOf(
             "Força" to 8,
             "Destreza" to 8,
@@ -15,9 +15,6 @@ class DefaultCharacterCreator : CharacterCreator {
         )
 
         val character = Character(attributes, race)
-
-        val points = 27
-        character.distributePoints(points)
 
         println("Pontos distribuidos! Vamos aplicar o seu bônus de raça....")
         character.applyRaceBonuses()

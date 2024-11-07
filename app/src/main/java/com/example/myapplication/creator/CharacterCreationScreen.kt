@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.myapplication.persistence.AppDatabase
 import com.example.myapplication.persistence.CharacterEntity
 import com.example.myapplication.model.*
@@ -16,7 +17,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CharacterCreationScreen(modifier: Modifier = Modifier, database: AppDatabase, characterName: String) {
+fun CharacterCreationScreen(modifier: Modifier = Modifier, database: AppDatabase, characterName: String, navController: NavController) {
     var strength by remember { mutableStateOf("8") }
     var dexterity by remember { mutableStateOf("8") }
     var constitution by remember { mutableStateOf("8") }
@@ -43,11 +44,21 @@ fun CharacterCreationScreen(modifier: Modifier = Modifier, database: AppDatabase
     val darkPurple = Color(0xFF4A148C)
     val lightPurple = Color(0xFFD1C4E9)
 
-    val characterDao = database.characterDao()
     val coroutineScope = rememberCoroutineScope()
 
+    var characters by remember { mutableStateOf<List<CharacterEntity>>(emptyList()) }
+
+    fun loadCharacters() {
+        coroutineScope.launch {
+            characters = database.characterDao().getAllCharacters()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        loadCharacters()
+    }
+
     Column(modifier = modifier.padding(16.dp)) {
-        // TextField for Strength
         TextField(
             value = strength,
             onValueChange = { strength = it },
@@ -138,7 +149,7 @@ fun CharacterCreationScreen(modifier: Modifier = Modifier, database: AppDatabase
             ),
             shape = MaterialTheme.shapes.medium
         )
-        // Dropdown for Race Selection
+
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = !expanded }
@@ -171,7 +182,6 @@ fun CharacterCreationScreen(modifier: Modifier = Modifier, database: AppDatabase
                         onClick = {
                             selectedRace = race
                             expanded = false
-                            // Update initial attributes based on selected race
                             val initialAttributes = getInitialAttributesForRace(race)
                             strength = initialAttributes["Força"].toString()
                             dexterity = initialAttributes["Destreza"].toString()
@@ -185,33 +195,40 @@ fun CharacterCreationScreen(modifier: Modifier = Modifier, database: AppDatabase
             }
         }
 
-        // Button to Calculate Hit Points and Save Character
+        // Button to Create Character
         Button(
             onClick = {
-                val valid = validateAttributes(strength, dexterity, constitution, intelligence, wisdom, charisma, initialAttributes)
-                if (valid) {
-                    val characterCreator = DefaultCharacterCreator()
-                    val race = getRace(selectedRace)
-                    val character = characterCreator.createCharacter(race)
-                    val characterEntity = CharacterEntity(
-                        name = characterName,
-                        race = selectedRace,
-                        strength = character.attributes["Força"] ?: 8,
-                        dexterity = character.attributes["Destreza"] ?: 8,
-                        constitution = character.attributes["Constituição"] ?: 8,
-                        intelligence = character.attributes["Inteligência"] ?: 8,
-                        wisdom = character.attributes["Sabedoria"] ?: 8,
-                        charisma = character.attributes["Carisma"] ?: 8,
-                        hitPoints = character.calculateHealthPoints()
-                    )
-                    coroutineScope.launch {
-                        characterDao.insert(characterEntity)
+                coroutineScope.launch {
+                    try {
+                        val valid = validateAttributes(strength, dexterity, constitution, intelligence, wisdom, charisma, initialAttributes)
+                        if (valid) {
+                            val points = listOf(strength, dexterity, constitution, intelligence, wisdom, charisma)
+                            val characterCreator = DefaultCharacterCreator()
+                            val race = getRace(selectedRace)
+                            val character = characterCreator.createCharacter(race, points)
+                            val characterEntity = CharacterEntity(
+                                name = characterName,
+                                race = selectedRace,
+                                strength = character.attributes["Força"] ?: 8,
+                                dexterity = character.attributes["Destreza"] ?: 8,
+                                constitution = character.attributes["Constituição"] ?: 8,
+                                intelligence = character.attributes["Inteligência"] ?: 8,
+                                wisdom = character.attributes["Sabedoria"] ?: 8,
+                                charisma = character.attributes["Carisma"] ?: 8,
+                                hitPoints = character.calculateHealthPoints()
+                            )
+                            database.characterDao().insert(characterEntity)
+                            loadCharacters()
+                            successMessage = "Personagem criado com sucesso!"
+                            errorMessage = ""
+                            navController.navigate("character_list")
+                        } else {
+                            errorMessage = "Distribuição de pontos inválida. Certifique-se de que a soma dos pontos distribuídos é 27 e cada atributo está entre 8 e 15."
+                            successMessage = ""
+                        }
+                    } catch (e: Exception) {
+                        errorMessage = "Erro ao criar personagem: ${e.message}"
                     }
-                    errorMessage = ""
-                    successMessage = "Personagem criado com sucesso!"
-                } else {
-                    errorMessage = "Distribuição de pontos inválida. Certifique-se de que a soma dos pontos distribuídos é 27 e cada atributo está entre 8 e 15."
-                    successMessage = ""
                 }
             },
             modifier = Modifier
@@ -219,10 +236,10 @@ fun CharacterCreationScreen(modifier: Modifier = Modifier, database: AppDatabase
                 .padding(bottom = 8.dp),
             colors = ButtonDefaults.buttonColors(containerColor = darkPurple)
         ) {
-            Text("Calcular Pontos de Vida", color = Color.White, fontSize = 16.sp)
+            Text("Criar Personagem", color = Color.White, fontSize = 16.sp)
         }
 
-        // Display Error and Success Messages
+        // Display Success or Error Messages
         if (errorMessage.isNotEmpty()) {
             Text(
                 text = errorMessage,
@@ -230,7 +247,6 @@ fun CharacterCreationScreen(modifier: Modifier = Modifier, database: AppDatabase
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
-
         if (successMessage.isNotEmpty()) {
             Text(
                 text = successMessage,
@@ -239,7 +255,6 @@ fun CharacterCreationScreen(modifier: Modifier = Modifier, database: AppDatabase
             )
         }
 
-        // Display Hit Points and Total Points
         Text(
             text = "Pontos de Vida: $hitPoints",
             style = MaterialTheme.typography.bodyLarge,
