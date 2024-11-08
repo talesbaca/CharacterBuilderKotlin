@@ -4,5 +4,5 @@ import com.example.myapplication.model.Character
 import com.example.myapplication.model.Race
 
 interface CharacterCreator {
-    fun createCharacter(race: Race, points: Any): Character
+    fun createCharacter(race: Race, points: List<String>): Character
 }

@@ -1,14 +1,16 @@
 package com.example.myapplication.creator
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -20,6 +22,9 @@ import kotlinx.coroutines.launch
 fun CharacterListScreen(navController: NavController, database: AppDatabase) {
     val coroutineScope = rememberCoroutineScope()
     var characters by remember { mutableStateOf<List<CharacterEntity>>(emptyList()) }
+    var isEditDialogOpen by remember { mutableStateOf(false) }
+    var characterToEdit by remember { mutableStateOf<CharacterEntity?>(null) }
+    var updatedName by remember { mutableStateOf(TextFieldValue()) }
 
     fun loadCharacters() {
         coroutineScope.launch {
@@ -31,6 +36,16 @@ fun CharacterListScreen(navController: NavController, database: AppDatabase) {
         coroutineScope.launch {
             database.characterDao().delete(character)
             loadCharacters()
+        }
+    }
+
+    fun updateCharacterName(newName: String) {
+        coroutineScope.launch {
+            characterToEdit?.let {
+                val updatedCharacter = it.copy(name = newName)
+                database.characterDao().update(updatedCharacter)
+                loadCharacters()
+            }
         }
     }
 
@@ -65,11 +80,32 @@ fun CharacterListScreen(navController: NavController, database: AppDatabase) {
                         Text(text = "Raça: ${character.race}", fontSize = 16.sp, color = Color.Black)
                         Text(text = "Pontos de Vida: ${character.hitPoints}", fontSize = 14.sp, color = Color.Gray)
 
-                        IconButton(
-                            onClick = { deleteCharacter(character) },
-                            modifier = Modifier.align(Alignment.End)
+                        // Display character attributes
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "Força: ${character.strength}", fontSize = 14.sp)
+                        Text(text = "Destreza: ${character.dexterity}", fontSize = 14.sp)
+                        Text(text = "Constituição: ${character.constitution}", fontSize = 14.sp)
+                        Text(text = "Inteligência: ${character.intelligence}", fontSize = 14.sp)
+                        Text(text = "Sabedoria: ${character.wisdom}", fontSize = 14.sp)
+                        Text(text = "Carisma: ${character.charisma}", fontSize = 14.sp)
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
                         ) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete Character", tint = Color.Red)
+                            // Edit button
+                            IconButton(onClick = {
+                                characterToEdit = character
+                                updatedName = TextFieldValue(character.name)
+                                isEditDialogOpen = true
+                            }) {
+                                Icon(Icons.Filled.Edit, contentDescription = "Edit Character", tint = Color.Blue)
+                            }
+
+                            // Delete button
+                            IconButton(onClick = { deleteCharacter(character) }) {
+                                Icon(Icons.Filled.Delete, contentDescription = "Delete Character", tint = Color.Red)
+                            }
                         }
                     }
                 }
@@ -81,5 +117,39 @@ fun CharacterListScreen(navController: NavController, database: AppDatabase) {
                 fontSize = 16.sp
             )
         }
+    }
+
+    // Edit character dialog
+    if (isEditDialogOpen && characterToEdit != null) {
+        AlertDialog(
+            onDismissRequest = { isEditDialogOpen = false },
+            title = { Text("Editar Nome do Personagem") },
+            text = {
+                TextField(
+                    value = updatedName,
+                    onValueChange = { updatedName = it },
+                    label = { Text("Novo Nome") }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        updateCharacterName(updatedName.text)
+                        isEditDialogOpen = false
+                    }
+                ) {
+                    Text("Confirmar")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        isEditDialogOpen = false
+                    }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
